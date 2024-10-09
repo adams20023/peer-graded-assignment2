@@ -1,0 +1,58 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
+import pandas as pd
+
+# Set up Chrome options
+chrome_options = Options()
+chrome_options.binary_location = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+# Use WebDriverManager to automatically download and manage the right version of ChromeDriver
+driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+
+# Open Yahoo Finance page for Tesla
+driver.get("https://finance.yahoo.com/quote/TSLA/financials?p=TSLA")
+
+# Wait for the financial data section to load
+WebDriverWait(driver, 20).until(
+    EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-test='fin-row']"))
+)
+
+# Get the page source and parse it with BeautifulSoup
+soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+# Find and extract the financial data
+table_rows = soup.find_all('div', {'data-test': 'fin-row'})
+revenue = []
+dates = ["2023", "2022", "2021", "2020", "2019"]
+
+for row in table_rows:
+    spans = row.find_all('span')
+    if spans:
+        metric = spans[0].text.strip()
+        if metric == "Total Revenue":
+            for span in spans[1:]:
+                revenue.append(span.text.strip())
+            break
+
+# Adjust lengths to match
+min_length = min(len(dates), len(revenue))
+dates = dates[:min_length]
+revenue = revenue[:min_length]
+
+# Create a dataframe
+tesla_revenue = pd.DataFrame({
+    "Year": dates,
+    "Total Revenue": revenue
+})
+
+# Display the dataframe
+print(tesla_revenue)
+
+# Close the browser
+driver.quit()
+
